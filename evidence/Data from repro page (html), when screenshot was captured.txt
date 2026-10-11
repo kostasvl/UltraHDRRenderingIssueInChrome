@@ -1,0 +1,12 @@
+Render height
+1136 px
+
+Image natural
+4032 x 2268
+
+Scale
+0.50088183
+
+---
+
+Render height 1044 px (one of seemingly many examples) also repros the black line, at a different height.
