@@ -21,7 +21,7 @@ The aforementioned app, as well as most of the info in this repository, includin
 |---|---|
 | `repro/index.html` | Self-contained reproduction: use in-page UI to load 2+ gain-map JPEG, then transition between the images (with arrow keys). If no no black lines appear during the transition, step the height by 1 or 4 px, and repeat.  |
 | `repro/*.jpg` | Two UltraHDR photos that demonstrate the problem. Others can be used as well.  |
-| `evidence/` | Screenshot and videos that captured the black lines |
+| `evidence/` | Screenshot and videos that capture the black lines. The video may need frame stepping. |
 
 ## What is established
 
