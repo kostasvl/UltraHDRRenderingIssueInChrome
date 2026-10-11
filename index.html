@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Chromium: tile seams on gain-map (UltraHDR) images</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #101014; color: #e8e8ea;
+               font: 13px/1.5 "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+
+  #frame { position: absolute; left: 0; right: 380px; top: 0; bottom: 0; display: grid; place-items: center; }
+
+  /* The container height is set by script — that is the variable under test. Both images are
+     stacked inside it so stepping between them is a cross-fade, which is what triggers the fresh
+     rasterization the defect rides on. A static image does NOT reproduce it. */
+  #holder { position: relative; height: 1060px; width: 100%; }
+  #holder img {
+    position: absolute; top: 0; left: 0; right: 0; margin: 0 auto;
+    height: 100%; width: auto;
+    image-orientation: from-image;
+    opacity: 0; transition: opacity 180ms ease;
+  }
+  #holder img.visible { opacity: 1; }
+
+  #panel { position: absolute; right: 0; top: 0; bottom: 0; width: 380px; padding: 16px 18px;
+           overflow: auto; background: #1a1b20; border-left: 1px solid #000; }
+  h1 { font-size: 15px; margin: 0 0 10px; }
+  p { margin: 8px 0; color: #b9bbc3; }
+  ol { margin: 8px 0 8px 18px; padding: 0; color: #b9bbc3; }
+  li { margin: 4px 0; }
+  .row { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0;
+         font-family: Consolas, monospace; font-size: 12px; }
+  .row b { font-weight: 600; }
+  .verdict { margin: 12px 0; padding: 10px 12px; border-radius: 4px; font-weight: 600; text-align: center; }
+  .dirty { background: #4a1d1d; color: #ffb4ae; }
+  .clean { background: #17351f; color: #8ce99a; }
+  .none  { background: #2a2c33; color: #b9bbc3; }
+  button { font: inherit; padding: 5px 10px; margin: 2px 3px 2px 0; cursor: pointer;
+           background: #2a2c33; color: #e8e8ea; border: 1px solid #000; border-radius: 3px; }
+  input[type=file] { width: 100%; margin: 6px 0; }
+  kbd { background: #000; padding: 1px 5px; border-radius: 3px; font-family: Consolas, monospace; }
+</style>
+</head>
+<body>
+
+<div id="frame"><div id="holder">
+  <img id="a" alt=""><img id="b" alt="">
+</div></div>
+
+<div id="panel">
+  <h1>Tile seams on gain-map (UltraHDR) images</h1>
+
+  <ol>
+    <li>Select <b>two or more UltraHDR / gain-map JPEGs</b> (any photos from a recent Android phone
+        with HDR on). At least one should have large smooth light areas — a plain wall, sky or
+        ceiling — otherwise the lines are hidden by detail.</li>
+    <li>Press <kbd>&larr;</kbd> / <kbd>&rarr;</kbd> to step between them.</li>
+    <li>Watch the arriving image for thin dark lines. They fade away on their own after about a
+        second.</li>
+    <li>Change the height with <kbd>,</kbd> / <kbd>.</kbd> and step again.</li>
+  </ol>
+
+  <input type="file" id="file" accept="image/*" multiple>
+
+  <p><b>Height</b>
+    <button data-delta="-1">−1</button>
+    <button data-delta="1">+1</button>
+    <button data-delta="-4">−4</button>
+    <button data-delta="4">+4</button>
+    <button id="step">Step image (→)</button>
+  </p>
+
+  <div class="row"><span>Showing</span><b id="which">–</b></div>
+  <div class="row"><span>Render height</span><b id="h">1060 px</b></div>
+  <div class="row"><span>Image natural</span><b id="nat">–</b></div>
+  <div class="row"><span>Scale</span><b id="scale">–</b></div>
+
+  <p style="margin-top:16px"><b>A static image does not reproduce this.</b> The seams appear on the
+     freshly rasterized image arriving from a transition, and resolve on their own shortly after.</p>
+
+  <p>Whether they appear depends on the render height: some heights are consistently affected and
+     others are consistently clean, and a one-pixel change can flip it. The position and thickness of
+     the lines change with the height too.</p>
+
+  <p>Firefox shows no seams on the same files — but Firefox does not support UltraHDR, so it is
+     displaying the SDR base image rather than a composited gain-map result, which makes it a weak
+     comparison rather than a true control.</p>
+</div>
+
+<script>
+const holder = document.getElementById('holder');
+const a = document.getElementById('a');
+const b = document.getElementById('b');
+
+let urls = [], index = 0, frontIsA = true, height = 1060;
+
+document.getElementById('file').addEventListener('change', event => {
+  urls = [...event.target.files].map(file => URL.createObjectURL(file));
+  index = 0;
+  if (!urls.length) return;
+  const front = a;
+  front.onload = update;
+  front.src = urls[0];
+  front.classList.add('visible');
+  b.classList.remove('visible');
+  frontIsA = true;
+});
+
+function step(delta) {
+  if (urls.length < 2) return;
+  index = (index + delta + urls.length) % urls.length;
+
+  const front = frontIsA ? a : b;
+  const back = frontIsA ? b : a;
+
+  back.onload = () => {
+    back.classList.add('visible');
+    front.classList.remove('visible');
+    frontIsA = !frontIsA;
+    update();
+  };
+  back.src = urls[index];
+}
+
+for (const button of document.querySelectorAll('button[data-delta]')) {
+  button.addEventListener('click', () => {
+    height = Math.max(200, height + Number(button.dataset.delta));
+    update();
+  });
+}
+document.getElementById('step').addEventListener('click', () => step(1));
+
+addEventListener('keydown', event => {
+  if (event.key === 'ArrowRight') step(1);
+  else if (event.key === 'ArrowLeft') step(-1);
+  else if (event.key === ',') { height = Math.max(200, height - 1); update(); }
+  else if (event.key === '.') { height = height + 1; update(); }
+  else return;
+  event.preventDefault();
+});
+
+function update() {
+  holder.style.height = height + 'px';
+
+  const img = frontIsA ? a : b;
+  const natural = img.naturalHeight || 0;
+  const scale = natural ? height / natural : 0;
+
+  document.getElementById('which').textContent =
+    urls.length ? `${index + 1} of ${urls.length}` : '–';
+  document.getElementById('h').textContent = height + ' px';
+  document.getElementById('nat').textContent = natural ? `${img.naturalWidth} x ${natural}` : '–';
+  document.getElementById('scale').textContent = scale ? scale.toFixed(8) : '–';
+}
+
+update();
+</script>
+</body>
+</html>
