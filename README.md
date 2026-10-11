@@ -1,3 +1,5 @@
+# UPDATE: Now reported to the Chromium team: https://issues.chromium.org/issues/572302943
+
 # Tile seams on gain-map (UltraHDR) images in Chromium
 
 Chromium draws thin dark lines across an UltraHDR photo at particular render sizes. This folder is the investigation record and a ready-to-file bug report.
